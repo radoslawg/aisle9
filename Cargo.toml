@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "raylib_aisle9",
+    "aisle9",
+    "raylib_ffi"
+]
+resolver = "2"

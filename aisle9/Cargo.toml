@@ -1,0 +1,13 @@
+[package]
+name = "aisle9"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+log = "0.4.29"
+simplelog = "0.12.2"
+raylib_aisle9 = { path = "../raylib_aisle9" }
+anyhow = "1.0.102"
+
+[build-dependencies]
+fs_extra = "1.3.0"

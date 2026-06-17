@@ -1,0 +1,29 @@
+name: Build
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y clang cmake libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libx11-dev libxxf86vm-dev libgl1-mesa-dev libudev-dev libvulkan-dev
+
+      - name: Build project
+        run: cargo build
+
+      - name: Run tests
+        run: cargo test
+

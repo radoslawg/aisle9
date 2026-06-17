@@ -1,0 +1,15 @@
+[package]
+name = "raylib_aisle9"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "raylib_aisle9"
+path = "src/lib.rs"
+
+[dependencies]
+anyhow = "1.0.102"
+raylib-ffi = { path = "../raylib_ffi" }
+log = "0.4.29"
+simplelog = "0.12.2"
+gltf = { version = "1.4.1", features = ["KHR_lights_punctual", "KHR_materials_emissive_strength", "extras"] }

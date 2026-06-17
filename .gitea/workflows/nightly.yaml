@@ -1,0 +1,198 @@
+name: Nightly Build
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # 3 AM UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check_commits:
+    name: Check for new commits
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for commits in the last 24 hours
+        id: check
+        run: |
+          if [ "${{ gitea.event_name }}" = "workflow_dispatch" ]; then
+            echo "Workflow manually triggered, forcing run."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          COMMITS=$(git log --oneline --since="24 hours ago" | wc -l)
+          if [ "$COMMITS" -gt 0 ]; then
+            echo "Found $COMMITS commits in the last 24 hours. Proceeding."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No commits found in the last 24 hours. Skipping build."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    name: Build (${{ matrix.name }})
+    needs: check_commits
+    if: needs.check_commits.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            name: linux-x86_64
+            artifact_name: aisle9
+            asset_name: aisle9-linux-x86_64
+            extension: tar.gz
+          - target: wasm32-unknown-emscripten
+            name: wasm-emscripten
+            artifact_name: aisle9-wasm
+            asset_name: aisle9-wasm
+            extension: zip
+
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install system dependencies (Linux)
+        run: sudo apt-get update && sudo apt-get install -y clang cmake libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libx11-dev libxxf86vm-dev libgl1-mesa-dev libudev-dev libvulkan-dev gcc-multilib
+
+      - name: Setup emsdk (WASM)
+        if: matrix.target == 'wasm32-unknown-emscripten'
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: latest
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          target: ${{ matrix.target }}
+          override: true
+          profile: minimal
+
+      - name: Build Project
+        run: cargo build --release --target ${{ matrix.target }} -p aisle9
+
+      - name: Prepare Binary (Linux)
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        shell: bash
+        run: |
+          mkdir -p staging/aisle9-linux-x86_64
+          cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} staging/aisle9-linux-x86_64/
+          cp -r target/${{ matrix.target }}/release/resources staging/aisle9-linux-x86_64/
+          cd staging
+          tar -czvf ${{ matrix.asset_name }}.tar.gz aisle9-linux-x86_64/
+          rm -rf aisle9-linux-x86_64
+
+      - name: Prepare Binary (WASM)
+        if: matrix.target == 'wasm32-unknown-emscripten'
+        shell: bash
+        run: |
+          mkdir -p staging/aisle9-wasm
+          cp target/${{ matrix.target }}/release/aisle9.js staging/aisle9-wasm/
+          cp target/${{ matrix.target }}/release/aisle9.wasm staging/aisle9-wasm/
+
+          # Cargo leaves the Emscripten .data file in the deps/ directory with a hash.
+          # We locate it and copy it over with its original name.
+          DATA_FILE=$(find target/${{ matrix.target }}/release/deps -maxdepth 1 -name "aisle9*.data" | head -n 1)
+          if [ -n "$DATA_FILE" ] && [ -f "$DATA_FILE" ]; then
+            cp "$DATA_FILE" staging/aisle9-wasm/
+          elif [ -f "target/${{ matrix.target }}/release/aisle9.data" ]; then
+            # Fallback in case cargo changes this behavior in the future
+            cp target/${{ matrix.target }}/release/aisle9.data staging/aisle9-wasm/
+          fi
+
+          cat raylib-ffi/third_party/raylib/src/minshell.html | sed 's/{{{ SCRIPT }}}/<script src="aisle9.js"><\/script>/g' > staging/aisle9-wasm/index.html
+          cd staging
+          zip -r ${{ matrix.asset_name }}.zip aisle9-wasm/*
+          rm -rf aisle9-wasm
+
+      - name: Upload Artifact
+        uses: https://github.com/christopherHX/gitea-upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}.${{ matrix.extension }}
+          path: staging/${{ matrix.asset_name }}.${{ matrix.extension }}
+
+  publish:
+    name: Publish Nightly
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifacts
+        uses: https://github.com/christopherHX/gitea-download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create or Update Nightly Release
+        shell: bash
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+          GITEA_SERVER_URL: ${{ gitea.server_url }}
+          REPO: ${{ gitea.repository }}
+        run: |
+          set -e
+          TAG="nightly"
+
+          echo "Checking for existing release with tag: $TAG"
+          # Get existing release ID if it exists
+          RELEASE_INFO=$(curl -s -H "Authorization: token ${GITEA_TOKEN}" \
+            "${GITEA_SERVER_URL}/api/v1/repos/${REPO}/releases/tags/${TAG}")
+
+          RELEASE_ID=$(echo "$RELEASE_INFO" | grep -o '"id":[0-9]*' | head -1 | cut -d: -f2 || true)
+
+          if [ ! -z "$RELEASE_ID" ] && [ "$RELEASE_ID" != "null" ]; then
+            echo "Deleting existing nightly release ID: $RELEASE_ID"
+            curl -s -X DELETE -H "Authorization: token ${GITEA_TOKEN}" \
+              "${GITEA_SERVER_URL}/api/v1/repos/${REPO}/releases/${RELEASE_ID}"
+          fi
+
+          # Delete tag if it exists (Gitea might keep it)
+          echo "Deleting tag if it exists..."
+          curl -s -X DELETE -H "Authorization: token ${GITEA_TOKEN}" \
+            "${GITEA_SERVER_URL}/api/v1/repos/${REPO}/tags/${TAG}" || true
+
+          # Create the release
+          echo "Creating new nightly release..."
+          RELEASE_DATA="{\"tag_name\":\"${TAG}\",\"target_commitish\":\"${{ gitea.sha }}\",\"name\":\"Nightly Build\",\"body\":\"Automated nightly build. Experimental and unstable.\\nLast Updated: $(date -u +'%Y-%m-%dT%H:%M:%SZ')\\nCommit: ${{ gitea.sha }}\",\"draft\":false,\"prerelease\":true}"
+
+          RELEASE=$(curl -s -X POST \
+            -H "Authorization: token ${GITEA_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "${GITEA_SERVER_URL}/api/v1/repos/${REPO}/releases" \
+            -d "$RELEASE_DATA")
+
+          RELEASE_ID=$(echo "$RELEASE" | grep -o '"id":[0-9]*' | head -1 | cut -d: -f2 || true)
+
+          if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" == "null" ]; then
+            echo "Failed to create release. Response:"
+            echo "$RELEASE"
+            exit 1
+          fi
+
+          echo "Created nightly release ID: $RELEASE_ID"
+
+          # Upload Assets
+          echo "Searching for artifacts in 'artifacts' directory..."
+          find artifacts -type f | while read file; do
+            filename=$(basename "$file")
+            echo "Uploading $filename from $file..."
+            UPLOAD_RESPONSE=$(curl -s -X POST \
+              -H "Authorization: token ${GITEA_TOKEN}" \
+              -H "Content-Type: application/octet-stream" \
+              "${GITEA_SERVER_URL}/api/v1/repos/${REPO}/releases/${RELEASE_ID}/assets?name=${filename}" \
+              --data-binary @"$file")
+            echo "Upload response: $UPLOAD_RESPONSE"
+          done
+
+          echo "Nightly release updated."

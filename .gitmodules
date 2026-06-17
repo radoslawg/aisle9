@@ -1,0 +1,6 @@
+[submodule "raylib_ffi"]
+	path = raylib_ffi
+	url = https://github.com/radoslawg/raylib-ffi.git
+[submodule "aisle9_assets"]
+	path = aisle9_assets
+	url = git@gitea.grzanka.org:radoslawg/aisle9_assets.git
