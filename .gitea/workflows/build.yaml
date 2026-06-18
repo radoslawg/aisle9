@@ -12,8 +12,12 @@ jobs:
       - name: Initialize submodules
         env:
           GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+          CF_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
           git config --global url."https://radoslawg:${GITEA_TOKEN}@gitea.grzanka.org/".insteadOf "git@gitea.grzanka.org:"
+          git config --global --add http."https://gitea.grzanka.org/".extraheader "CF-Access-Client-Id: ${CF_CLIENT_ID}"
+          git config --global --add http."https://gitea.grzanka.org/".extraheader "CF-Access-Client-Secret: ${CF_CLIENT_SECRET}"
           git submodule sync --recursive
           git submodule update --init --recursive
 
