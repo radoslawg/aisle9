@@ -59,16 +59,16 @@ jobs:
             extension: zip
 
     steps:
-      - name: Configure git to access private submodule via HTTPS
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+
+      - name: Initialize submodules
         env:
           GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
         run: |
-          git config --global url."https://oauth2:${GITEA_TOKEN}@gitea.grzanka.org/".insteadOf "git@gitea.grzanka.org:"
-
-      - name: Checkout repository code
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
+          git config --global url."https://radoslawg:${GITEA_TOKEN}@gitea.grzanka.org/".insteadOf "git@gitea.grzanka.org:"
+          git submodule sync --recursive
+          git submodule update --init --recursive
 
       - name: Install system dependencies (Linux)
         run: sudo apt-get update && sudo apt-get install -y clang cmake libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libx11-dev libxxf86vm-dev libgl1-mesa-dev libudev-dev libvulkan-dev gcc-multilib

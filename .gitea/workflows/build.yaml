@@ -6,16 +6,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Configure git to access private submodule via HTTPS
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+
+      - name: Initialize submodules
         env:
           GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
         run: |
-          git config --global url."https://oauth2:${GITEA_TOKEN}@gitea.grzanka.org/".insteadOf "git@gitea.grzanka.org:"
-
-      - name: Checkout repository code
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
+          git config --global url."https://radoslawg:${GITEA_TOKEN}@gitea.grzanka.org/".insteadOf "git@gitea.grzanka.org:"
+          git submodule sync --recursive
+          git submodule update --init --recursive
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
