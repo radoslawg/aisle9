@@ -64,13 +64,14 @@ jobs:
 
       - name: Initialize submodules
         env:
-          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
-          CF_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
-          CF_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          DEPLOY_KEY: ${{ secrets.AISLE9_ASSETS_DEPLOY_KEY }}
         run: |
-          git config --global url."https://radoslawg:${GITEA_TOKEN}@gitea.grzanka.org/".insteadOf "git@gitea.grzanka.org:"
-          git config --global --add http."https://gitea.grzanka.org/".extraheader "CF-Access-Client-Id: ${CF_CLIENT_ID}"
-          git config --global --add http."https://gitea.grzanka.org/".extraheader "CF-Access-Client-Secret: ${CF_CLIENT_SECRET}"
+          mkdir -p ~/.ssh
+          printf '%s\n' "${DEPLOY_KEY}" > ~/.ssh/aisle9_assets_key
+          chmod 600 ~/.ssh/aisle9_assets_key
+          ssh-keyscan -p 222 192.168.18.16 >> ~/.ssh/known_hosts 2>/dev/null
+          git config --global core.sshCommand "ssh -i ~/.ssh/aisle9_assets_key"
+          git config --global url."ssh://git@192.168.18.16:222/".insteadOf "git@gitea.grzanka.org:"
           git submodule sync --recursive
           git submodule update --init --recursive
 
