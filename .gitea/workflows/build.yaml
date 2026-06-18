@@ -6,6 +6,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Configure git to access private submodule via HTTPS
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+        run: |
+          git config --global url."https://oauth2:${GITEA_TOKEN}@gitea.grzanka.org/".insteadOf "git@gitea.grzanka.org:"
+
       - name: Checkout repository code
         uses: actions/checkout@v4
         with:
