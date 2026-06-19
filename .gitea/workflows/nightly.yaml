@@ -101,7 +101,7 @@ jobs:
         run: |
           mkdir -p staging/aisle9-linux-x86_64
           cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} staging/aisle9-linux-x86_64/
-          cp -r target/${{ matrix.target }}/release/resources staging/aisle9-linux-x86_64/
+          cp -r target/${{ matrix.target }}/release/assets staging/aisle9-linux-x86_64/
           cd staging
           tar -czvf ${{ matrix.asset_name }}.tar.gz aisle9-linux-x86_64/
           rm -rf aisle9-linux-x86_64
