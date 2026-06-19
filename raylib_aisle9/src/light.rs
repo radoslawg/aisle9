@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::{
     Color,
     vector::{Quaternion, Vector3},
@@ -46,8 +48,8 @@ impl Light {
                 + f32::powf(target.z - self.position.z, 2.0),
         ) <= self.falloff
     }
-    pub fn load_lights(file_path: &str) -> Vec<Self> {
-        log::trace!("Trying to load lights from {file_path}");
+    pub fn load_lights(file_path: &Path) -> Vec<Self> {
+        log::trace!("Trying to load lights from {:?}", file_path);
         let Ok((document, _, _)) = gltf::import(file_path) else {
             return Vec::new();
         };
@@ -78,7 +80,11 @@ impl Light {
                     z: rotation[2],
                     w: rotation[3],
                 });
-                log::trace!("Loaded light from {} with data: {:?}", file_path, new_light);
+                log::trace!(
+                    "Loaded light from {:?} with data: {:?}",
+                    file_path,
+                    new_light
+                );
                 result.push(new_light);
             }
         }

@@ -1,5 +1,5 @@
 use raylib_ffi::*;
-use std::ffi::CString;
+use std::{ffi::CString, path::Path};
 
 use crate::camera3d::Camera3D;
 
@@ -79,8 +79,8 @@ pub fn set_trace_log_callback(callback: TraceLogCallback) {
     }
 }
 
-pub fn load_texture(path: &str) -> Texture2D {
-    unsafe { raylib_ffi::LoadTexture(CString::new(path).unwrap().as_ptr()) }
+pub fn load_texture(path: &Path) -> Texture2D {
+    unsafe { raylib_ffi::LoadTexture(CString::new(path.to_str().unwrap()).unwrap().as_ptr()) }
 }
 
 pub fn clear_background(color: raylib_ffi::Color) {
