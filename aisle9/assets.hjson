@@ -1,0 +1,10 @@
+{
+  Models:
+  {
+    Floor: {File: "Floor2x2.gltf"}
+  }
+  Textures:
+  {
+    Grid: {File: "PolygonPrototype_Texture_Grid_02.png"}
+  }
+}

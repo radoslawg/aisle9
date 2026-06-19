@@ -22,9 +22,11 @@ name = "aisle9"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "deser-hjson",
  "fs_extra",
  "log",
  "raylib_aisle9",
+ "serde",
  "simplelog",
 ]
 
@@ -149,6 +151,15 @@ name = "deranged"
 version = "0.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7cd812cc2bc1d69d4764bd80df88b4317eaef9e773c75226407d9bc0876b211c"
+
+[[package]]
+name = "deser-hjson"
+version = "2.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a0d49a923edd92dc1ca5819822f540ea83f094ab5ac6940e4044e03c1d8e6576"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "either"
